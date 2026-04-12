@@ -3000,6 +3000,17 @@ static vk_fa_tuning_params get_fa_tuning_params(const vk_device& device, uint32_
     FaCodePath path = device->coopmat2 ? FA_COOPMAT2 :
                       device->coopmat1_fa_support ? FA_COOPMAT1 : FA_SCALAR;
 
+    // TURBO3_0 only has FA_SCALAR pipelines registered via the CREATE_FA macro
+    // (lines 3451/3457). FA_COOPMAT1 and FA_COOPMAT2 lookups for TURBO3_0
+    // create empty pipeline_struct entries that never get compiled, leaving
+    // wg_denoms[0] == 0 and tripping the
+    //   GGML_ASSERT(Br == pipeline->wg_denoms[0])
+    // at the dispatch site. Force scalar until CREATE_FA(GGML_TYPE_TURBO3_0,
+    // ..., FA_COOPMAT1/COOPMAT2, ...) lines are added.
+    if (kv_type == GGML_TYPE_TURBO3_0) {
+        path = FA_SCALAR;
+    }
+
     if (path == FA_COOPMAT1 && device->architecture == vk_device_architecture::NVIDIA_TURING) {
         // Nvidia compiler bug, see https://github.com/ggml-org/llama.cpp/pull/19075#issuecomment-3820716090
         path = FA_SCALAR;
