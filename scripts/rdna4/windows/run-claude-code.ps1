@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # Start Claude Code CLI against the local llama-server with Gemma 4.
-# Assumes run-gemma4-256k.ps1 is already running on the configured port.
+# Assumes run-gemma4.ps1 is already running on the configured port.
 
 $ErrorActionPreference = "Stop"
 
@@ -14,7 +14,7 @@ try {
     Write-Host "llama-server reachable at $server" -ForegroundColor Green
 } catch {
     Write-Host "Cannot reach llama-server at $server" -ForegroundColor Red
-    Write-Host "Start it first: .\scripts\rdna4\windows\run-gemma4-256k.ps1" -ForegroundColor Yellow
+    Write-Host "Start it first: .\scripts\rdna4\windows\run-gemma4.ps1" -ForegroundColor Yellow
     exit 1
 }
 

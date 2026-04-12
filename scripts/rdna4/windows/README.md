@@ -1,9 +1,11 @@
-# RDNA 4 Windows — Gemma 4 26B-A4B @ 256K
+# RDNA 4 Windows — Gemma 4 26B-A4B
 
 Target hardware: AMD Ryzen 7 9800X3D + 32 GB DDR5 + **RX 9070 XT** (gfx1201, 16 GB) — the product name in some earlier docs was "9700 XT" but the actual retail name is 9070 XT.
-Target model: `unsloth/gemma-4-26B-A4B-it-GGUF` at `UD-Q4_K_XL` (17.1 GB).
-Target context: 256 K tokens.
+Target model: `unsloth/gemma-4-26B-A4B-it-GGUF` at `UD-IQ4_XS` (13.4 GB, ~4.25 bpw).
+Target context: 128 K tokens, full GPU, no MoE CPU offload.
 Work drives: `E:\work` for the repo, `E:\models` for GGUF files. `C:` is reserved for the OS.
+
+> Earlier versions of this setup used `UD-Q4_K_XL` (17.1 GB) with MoE CPU offload (`-ncmoe 30`) to fit 256 K context. That config works but takes a ~10× prefill / ~4× decode speed hit because experts run on the Zen 5 CPU instead of the 9070 XT. `UD-IQ4_XS` fits natively in 16 GB VRAM without offload, so we lose some quality (4.25 bpw vs 5 bpw) but gain roughly an order of magnitude in prefill throughput. See the bench numbers below.
 
 ## Bring-up
 
@@ -29,7 +31,7 @@ Work drives: `E:\work` for the repo, `E:\models` for GGUF files. `C:` is reserve
 
 4. Launch the server:
    ```powershell
-   .\scripts\rdna4\windows\run-gemma4-256k.ps1
+   .\scripts\rdna4\windows\run-gemma4.ps1
    ```
 
 5. In a second shell, launch Claude Code:
