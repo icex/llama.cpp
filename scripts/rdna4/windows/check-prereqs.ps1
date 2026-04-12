@@ -55,7 +55,7 @@ Check "RAM >= 32 GB (have: $totalRam GB)" { $totalRam -ge 31 } "Gemma 4 26B expe
 
 Write-Host ""
 Write-Host "Model file:"
-$defaultModel = if ($env:TQ_MODEL_PATH) { $env:TQ_MODEL_PATH } else { "C:\models\gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf" }
+$defaultModel = if ($env:TQ_MODEL_PATH) { $env:TQ_MODEL_PATH } else { "E:\models\gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf" }
 Check "GGUF present ($defaultModel)" { Test-Path $defaultModel } "Download from https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF (UD-Q4_K_XL, ~17.1 GB) and place at the path above, or set TQ_MODEL_PATH"
 
 Write-Host ""

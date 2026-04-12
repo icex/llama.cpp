@@ -56,7 +56,7 @@ $ErrorActionPreference = "Stop"
 # --- Paths ---
 $repoRoot     = Resolve-Path (Join-Path $PSScriptRoot "..\..\..")
 $llamaServer  = Join-Path $repoRoot "build-vulkan\bin\Release\llama-server.exe"
-$defaultModel = "C:\models\gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf"
+$defaultModel = "E:\models\gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf"
 
 # --- Config (override via env vars) ---
 $model   = if ($env:TQ_MODEL_PATH) { $env:TQ_MODEL_PATH } else { $defaultModel }
@@ -65,8 +65,8 @@ $host_ip = if ($env:TQ_HOST)       { $env:TQ_HOST }       else { "127.0.0.1" }
 $ctx     = if ($env:TQ_CTX)        { $env:TQ_CTX }        else { "262144" }
 $batch   = if ($env:TQ_BATCH)      { $env:TQ_BATCH }      else { "128" }
 $ubatch  = if ($env:TQ_UBATCH)     { $env:TQ_UBATCH }     else { "64" }
-$ctk     = if ($env:TQ_CTK)        { $env:TQ_CTK }        else { "turbo3" }
-$ctv     = if ($env:TQ_CTV)        { $env:TQ_CTV }        else { "turbo3" }
+$ctk     = if ($env:TQ_CTK)        { $env:TQ_CTK }        else { "q8_0" }
+$ctv     = if ($env:TQ_CTV)        { $env:TQ_CTV }        else { "q8_0" }
 $threads = if ($env:TQ_THREADS)    { $env:TQ_THREADS }    else { "16" }
 
 # --- Preflight ---
