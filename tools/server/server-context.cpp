@@ -1899,6 +1899,33 @@ private:
                     slot->prompt.tokens.clear();
                     slot->prompt.tokens.insert(tokens);
 
+                    // For hybrid/recurrent/SWA models: create a checkpoint after restore
+                    // so that subsequent requests don't force full re-processing.
+                    // Without this, the server sees no checkpoint data and resets everything.
+                    if (token_count >= 64) {
+                        const auto pos_min = llama_memory_seq_pos_min(llama_get_memory(ctx), slot->id);
+                        const auto pos_max = llama_memory_seq_pos_max(llama_get_memory(ctx), slot->id);
+
+                        if (pos_min >= 0) {
+                            const size_t checkpoint_size =
+                                llama_state_seq_get_size_ext(ctx, slot->id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+
+                            slot->prompt.checkpoints.clear();
+                            auto & cur = slot->prompt.checkpoints.emplace_back(server_prompt_checkpoint{
+                                /*.pos_min  = */ pos_min,
+                                /*.pos_max  = */ pos_max,
+                                /*.n_tokens = */ (int64_t) token_count,
+                                /*.data     = */ std::vector<uint8_t>(checkpoint_size),
+                            });
+
+                            llama_state_seq_get_data_ext(ctx, cur.data.data(), checkpoint_size, slot->id,
+                                                         LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+
+                            SLT_WRN(*slot, "created post-restore checkpoint (pos_min = %d, pos_max = %d, n_tokens = %zu, size = %.3f MiB)\n",
+                                    pos_min, pos_max, token_count, (float) checkpoint_size / 1024 / 1024);
+                        }
+                    }
+
                     const int64_t t_end = ggml_time_us();
                     const double t_restore_ms = (t_end - t_start) / 1000.0;
 
