@@ -63,7 +63,7 @@ $defaultModel = "E:\models\gemma-4-26B-A4B-it-UD-IQ4_XS.gguf"
 # --- Config (override via env vars) ---
 $model   = if ($env:TQ_MODEL_PATH) { $env:TQ_MODEL_PATH } else { $defaultModel }
 $port    = if ($env:TQ_PORT)       { $env:TQ_PORT }       else { "8001" }
-$host_ip = if ($env:TQ_HOST)       { $env:TQ_HOST }       else { "127.0.0.1" }
+$host_ip = if ($env:TQ_HOST)       { $env:TQ_HOST }       else { "0.0.0.0" }
 $ctx     = if ($env:TQ_CTX)        { $env:TQ_CTX }        else { "131072" }
 $batch   = if ($env:TQ_BATCH)      { $env:TQ_BATCH }      else { "128" }
 $ubatch  = if ($env:TQ_UBATCH)     { $env:TQ_UBATCH }     else { "64" }
