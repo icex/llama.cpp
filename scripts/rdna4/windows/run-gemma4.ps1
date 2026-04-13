@@ -103,9 +103,17 @@ Write-Host ""
 # at 256K, set TQ_MODEL_PATH + TQ_CTX=262144 and pass -ncmoe 30 via $args.
 #
 # --slot-save-path enables the /slots/{id}?action=save|restore HTTP API.
-# --cache-reuse 256 lets the in-memory prompt cache reuse chunks of 256+
-# tokens across requests via KV shifting (good for agentic coding where
-# the prefix rarely changes).
+#
+# --ctx-checkpoints 64 --checkpoint-every-n-tokens 1024 create dense
+# intermediate checkpoints during prefill so short-LCP continuations can
+# resume from a nearby saved state. Paired with the patched cache-reuse
+# boundary fix (commit 3c7ba74) this gives Claude Code ~100x warm-request
+# prefill speedup on Gemma 4's SWA attention — the earlier behavior
+# forced a full re-prefill on every short turn because the >= boundary
+# on pos_min_thold fired even when memory already held the needed state.
+#
+# --cache-reuse is a no-op for SWA models (logs "cache_reuse is not
+# supported by this context, it will be disabled") but costs nothing.
 $serverArgs = @(
     "-m", $model,
     "--alias", "gemma-4-26b",
@@ -119,7 +127,8 @@ $serverArgs = @(
     "--threads", $threads,
     "-np", "1",
     "--slot-save-path", $slotDir,
-    "--cache-reuse", "256",
+    "--ctx-checkpoints", "64",
+    "--checkpoint-every-n-tokens", "1024",
     "--host", $host_ip, "--port", $port
 ) + $args
 
