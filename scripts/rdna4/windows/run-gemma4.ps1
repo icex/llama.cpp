@@ -128,6 +128,7 @@ $serverArgs = @(
     "--threads", $threads,
     "-np", $nparallel,
     "--kv-unified",
+    "--no-clear-idle",
     "--slot-prompt-similarity", "0.50",
     "--slot-save-path", $slotDir,
     "--ctx-checkpoints", "64",
@@ -148,6 +149,16 @@ $serverArgs = @(
 # because the common CC system-prompt prefix coincidentally matches 10%
 # of the probe's tokens. Probes fall to the size-aware LRU, which sends
 # them to an empty slot.
+#
+# --no-clear-idle: disable the clear_idle feature that serializes and
+# clears every idle slot's state into a size-limited RAM prompt cache
+# on each new task. With Gemma 4's ~345 MiB checkpoints * 30 entries
+# per slot, one slot's state can be ~11 GB — bigger than the default
+# 8 GiB cache_ram limit, so the cache evicts it immediately and the
+# next matching request loses its warm state anyway. Leaving slots
+# warm in place is both faster (no copy out + copy in) and safer
+# (no eviction). Slots still get LCP-matched normally; probes still
+# route to empty slots via size-aware LRU.
 
 $server = Start-Process -FilePath $llamaServer -ArgumentList $serverArgs -PassThru -NoNewWindow
 
