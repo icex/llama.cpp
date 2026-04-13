@@ -1003,24 +1003,45 @@ private:
         }
 
         // find the slot that has been least recently used
+        //
+        // Size-aware variant: when the incoming task is much smaller than a
+        // slot's accumulated context (4x or more), treat that slot as "hot"
+        // and skip it on the first pass. This protects long-lived sessions
+        // with ~30K tokens of system prompt + history from being flushed by
+        // short probe requests (title generation, tool schema pings, etc.)
+        // that would otherwise erase all of the hot slot's checkpoints in
+        // update_slots. Fall back to unconditional LRU only if every slot
+        // is hot relative to the incoming task.
         if (ret == nullptr) {
-            int64_t t_last = -1;
+            const size_t task_size = task.tokens.size();
 
-            for (server_slot & slot : slots) {
-                // skip the slot if it is not available
-                if (slot.is_processing()) {
-                    continue;
+            auto pick_lru = [&](bool allow_hot) -> server_slot * {
+                server_slot * best = nullptr;
+                int64_t t_last = -1;
+                for (server_slot & slot : slots) {
+                    if (slot.is_processing()) {
+                        continue;
+                    }
+                    const size_t slot_size = slot.prompt.tokens.size();
+                    const bool is_hot = task_size > 0 && slot_size > 4 * task_size;
+                    if (is_hot && !allow_hot) {
+                        continue;
+                    }
+                    if (!best || slot.t_last_used <= t_last) {
+                        t_last = slot.t_last_used;
+                        best = &slot;
+                    }
                 }
+                return best;
+            };
 
-                // select the current slot if the criteria match
-                if (!ret || slot.t_last_used <= t_last) {
-                    t_last = slot.t_last_used;
-                    ret = &slot;
-                }
+            ret = pick_lru(/*allow_hot=*/false);
+            if (ret == nullptr) {
+                ret = pick_lru(/*allow_hot=*/true);
             }
 
             if (ret != nullptr) {
-                SLT_INF(*ret, "selected slot by LRU, t_last = %" PRId64 "\n", t_last);
+                SLT_INF(*ret, "selected slot by LRU, t_last = %" PRId64 " (size-aware)\n", ret->t_last_used);
 
                 update_cache = true;
             }

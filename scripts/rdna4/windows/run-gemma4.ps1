@@ -72,6 +72,7 @@ $ctv      = if ($env:TQ_CTV)       { $env:TQ_CTV }       else { "q8_0" }
 $threads  = if ($env:TQ_THREADS)   { $env:TQ_THREADS }   else { "16" }
 $slotDir  = if ($env:TQ_SLOT_DIR)  { $env:TQ_SLOT_DIR }  else { "E:\work\slots" }
 $slotFile = if ($env:TQ_SLOT_FILE) { $env:TQ_SLOT_FILE } else { "slot-0.bin" }
+$nparallel = if ($env:TQ_NP)       { $env:TQ_NP }       else { "3" }
 
 # --- Preflight ---
 if (-not (Test-Path $llamaServer)) {
@@ -125,12 +126,28 @@ $serverArgs = @(
     "--no-warmup",
     "-fit", "off",
     "--threads", $threads,
-    "-np", "1",
+    "-np", $nparallel,
+    "--kv-unified",
+    "--slot-prompt-similarity", "0.50",
     "--slot-save-path", $slotDir,
     "--ctx-checkpoints", "64",
     "--checkpoint-every-n-tokens", "1024",
     "--host", $host_ip, "--port", $port
 ) + $args
+#
+# -np 3: three parallel slots. Slot 0 holds the main Claude Code session
+# (~30K+ tokens). Slots 1/2 act as scratch slots for short probe requests
+# (title generation, tool-schema pings, subagent summarization) so they
+# don't evict slot 0. Combined with the size-aware LRU patch in
+# get_available_slot (server-context.cpp), short tasks land on empty/small
+# slots first and only fall back to evicting a hot slot when every slot
+# is full.
+#
+# --slot-prompt-similarity 0.50: raised from 0.10 default. Below this,
+# LCP-based selection refuses to latch a probe onto the hot slot just
+# because the common CC system-prompt prefix coincidentally matches 10%
+# of the probe's tokens. Probes fall to the size-aware LRU, which sends
+# them to an empty slot.
 
 $server = Start-Process -FilePath $llamaServer -ArgumentList $serverArgs -PassThru -NoNewWindow
 
