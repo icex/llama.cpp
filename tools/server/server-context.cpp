@@ -406,10 +406,11 @@ struct server_slot {
         json res;
 
         res = {
-            {"id",            id},
-            {"n_ctx",         n_ctx},
-            {"speculative",   can_speculate()},
-            {"is_processing", is_processing()},
+            {"id",              id},
+            {"n_ctx",           n_ctx},
+            {"n_prompt_tokens", (int) prompt.tokens.size()},
+            {"speculative",     can_speculate()},
+            {"is_processing",   is_processing()},
         };
 
         const auto & ptask = task ? task : task_prev;
