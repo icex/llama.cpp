@@ -129,6 +129,7 @@ $serverArgs = @(
     "-np", $nparallel,
     "--kv-unified",
     "--no-clear-idle",
+    "--slots",
     "--slot-prompt-similarity", "0.50",
     "--slot-save-path", $slotDir,
     "--ctx-checkpoints", "64",
