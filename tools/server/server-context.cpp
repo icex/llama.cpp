@@ -2420,7 +2420,18 @@ private:
                                     SLT_WRN(slot, "%s\n", st1.str().c_str());
                                 }
 
-                                if (pos_min >= pos_min_thold) {
+                                // Memory suffices when pos_min <= pos_min_thold (memory starts at or
+                                // before the earliest position we need state for). It's INSUFFICIENT
+                                // only when pos_min > pos_min_thold, i.e. the SWA/hybrid memory has
+                                // actually pruned past what we need. The previous `>=` incorrectly
+                                // fires on the boundary case pos_min == pos_min_thold, including the
+                                // common situation pos_min == 0 && pos_min_thold == 0 where nothing
+                                // has been pruned and the memory already holds the full needed window.
+                                // That triggered a checkpoint search that always failed (no checkpoint
+                                // has pos_min < 0) and then forced full re-prefill on every short
+                                // request. See PR #13194 and the "forcing full prompt re-processing"
+                                // error path below.
+                                if (pos_min > pos_min_thold) {
                                     SLT_WRN(slot, "n_past = %d, slot.prompt.tokens.size() = %d, seq_id = %d, pos_min = %d, n_swa = %d\n", n_past, (int) slot.prompt.tokens.size(), slot.id, pos_min, n_swa);
 
                                     // search for a context checkpoint
