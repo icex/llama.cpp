@@ -219,7 +219,21 @@ llama_kv_cache::llama_kv_cache(
         // For turbo types, pad K head_dim to next multiple of 128 for full WHT groups
         uint32_t n_embd_k_gqa_eff = n_embd_k_gqa;
         const bool k_is_turbo = (layer_type_k == GGML_TYPE_TURBO3_0 || layer_type_k == GGML_TYPE_TURBO4_0 || layer_type_k == GGML_TYPE_TURBO2_0);
+        // Deferred F16-prefill K cache is CUDA-only: the post-prefill F16->quantized
+        // conversion (convert_deferred_keys) is guarded behind GGML_USE_CUDA in
+        // llama-context.cpp, so on Metal/CPU the deferred K cache would stay F16
+        // forever and pair with a quantized V — an asymmetric pair that Metal's
+        // FA supports_op rejects, forcing every attention op onto the CPU backend
+        // (~2 splits per layer = 84+ total splits for Gemma 4 on M4 Max).
+        //
+        // On non-CUDA backends, allocate K directly as the requested quantized
+        // type so FA stays symmetric and dispatches to the planar3/iso3 dk512
+        // Metal templates added in this session.
+#ifdef GGML_USE_CUDA
         const bool k_is_deferred = (layer_type_k == GGML_TYPE_PLANAR3_0 || layer_type_k == GGML_TYPE_ISO3_0 || layer_type_k == GGML_TYPE_PLANAR4_0 || layer_type_k == GGML_TYPE_ISO4_0);
+#else
+        const bool k_is_deferred = false;
+#endif
         if (k_is_turbo && n_embd_head_k % 128 != 0) {
             const uint32_t padded_head_k = ((n_embd_head_k + 127) / 128) * 128;
             const uint32_t n_head_kv = n_embd_k_gqa / n_embd_head_k;
