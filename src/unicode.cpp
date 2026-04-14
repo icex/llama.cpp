@@ -912,7 +912,7 @@ bool unicode_cpt_is_han(uint32_t cpt) {
     return false;
 }
 
-std::vector<std::string> unicode_regex_split(const std::string & text, const std::vector<std::string> & regex_exprs) {
+std::vector<std::string> unicode_regex_split(const std::string & text, const std::vector<std::string> & regex_exprs, bool /*byte_encode*/) {
     // unicode categories
     static const std::map<std::string, int> k_ucat_enum = {
         { "\\p{N}", unicode_cpt_flags::NUMBER },
