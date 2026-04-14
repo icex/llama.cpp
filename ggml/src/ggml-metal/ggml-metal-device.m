@@ -1197,16 +1197,16 @@ bool ggml_metal_device_supports_op(ggml_metal_device_t dev, const struct ggml_te
                 // Allow asymmetric K/V for supported mixed pairs:
                 // - turbo x turbo (any combination; iso3/planar3 count as turbo here)
                 // - q8_0 x turbo (either direction) — validated, all-Metal
-                // Note: f16 x iso3/planar3 templates exist in the .metal file but
-                //       produced corrupted decode output on Gemma 4 even though the
-                //       compiled kernel runs on Metal (no CPU fallback). Root cause
-                //       is in the shared vec-FA kernel body's K-fast-path +
-                //       V-dequant-path interaction — an entirely unexplored path in
-                //       upstream llama.cpp (neither rotorquant nor turboquant has
-                //       any kf16_v<quant> templates). Disabled pending kernel-level
-                //       debug. Users wanting f16-like K precision + iso3 V should
-                //       use q8_0 K (1e-3 PPL difference vs f16, 5.1x V compression,
-                //       all-Metal GPU).
+                // Note: f16 x iso3/planar3 was explored in depth (both with direct
+                //       half4 templates and with a kf16_block_t4x4 wrapper type to
+                //       force K through the dequant path) but both approaches
+                //       produced corrupted decode output on Gemma 4 while still
+                //       dispatching to Metal (no CPU fallback). Root cause is in
+                //       the shared FA kernel body's accumulation/reduction state;
+                //       needs ground-up kernel-level debugging. The deferred F16
+                //       prefill optimization is marginal on Metal anyway (<1% over
+                //       the symmetric iso3/iso3 path at prefill), so we recommend
+                //       q8_0 × iso3 for users wanting near-f16 K precision.
                 const bool k_is_turbo = (op->src[1]->type == GGML_TYPE_TURBO2_0 ||
                                          op->src[1]->type == GGML_TYPE_TURBO3_0 ||
                                          op->src[1]->type == GGML_TYPE_TURBO4_0 ||

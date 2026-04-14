@@ -7627,23 +7627,18 @@ template [[host_name("kernel_flash_attn_ext_kiso3_viso3_dk320_dv256")]] kernel f
 template [[host_name("kernel_flash_attn_ext_kiso3_viso3_dk512_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_iso3_0, NL_ISO3, dequantize_iso3_0, block_iso3_0, NL_ISO3, dequantize_iso3_0, 512, 512>;
 template [[host_name("kernel_flash_attn_ext_kiso3_viso3_dk576_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_iso3_0, NL_ISO3, dequantize_iso3_0, block_iso3_0, NL_ISO3, dequantize_iso3_0, 576, 512>;
 
-// Asymmetric K/V for IsoQuant deferred-F16-prefill path and explicit F16-K / Q8_0-K use
-//   kf16 × viso3  — deferred F16 K-prefill → iso3 V compression (5.1x total)
-//   kq8_0 × viso3 — user-facing Q8_0 K + iso3 V (5.1x total)
-//   kiso3 × vf16  — (reverse direction, less common but symmetric support)
-//   kiso3 × vq8_0 — (reverse direction)
-template [[host_name("kernel_flash_attn_ext_kf16_viso3_dk128_dv128")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, half4x4, 1, dequantize_f16, block_iso3_0, NL_ISO3, dequantize_iso3_0, 128, 128>;
-template [[host_name("kernel_flash_attn_ext_kf16_viso3_dk256_dv256")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, half4x4, 1, dequantize_f16, block_iso3_0, NL_ISO3, dequantize_iso3_0, 256, 256>;
-template [[host_name("kernel_flash_attn_ext_kf16_viso3_dk512_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, half4x4, 1, dequantize_f16, block_iso3_0, NL_ISO3, dequantize_iso3_0, 512, 512>;
-template [[host_name("kernel_flash_attn_ext_kf16_viso3_dk576_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, half4x4, 1, dequantize_f16, block_iso3_0, NL_ISO3, dequantize_iso3_0, 576, 512>;
+// Asymmetric K/V for IsoQuant — Q8_0 K + iso3 V (5.1x V compression, Q8_0 K)
+// This is the validated asymmetric config on Metal. F16 × iso3 was explored
+// in commits e68df384e and this session but produces incorrect decode output
+// on Gemma 4 even through a kf16_block_t4x4 wrapper that forces the dequant
+// path — root cause is deeper in the shared FA kernel body and requires a
+// ground-up Metal debug pass that wasn't viable in this session. Q8_0 K gives
+// ~1e-3 PPL delta vs f16 and compresses K further, so it's the better choice
+// regardless.
 template [[host_name("kernel_flash_attn_ext_kq8_0_viso3_dk128_dv128")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_q8_0, 2, dequantize_q8_0, block_iso3_0, NL_ISO3, dequantize_iso3_0, 128, 128>;
 template [[host_name("kernel_flash_attn_ext_kq8_0_viso3_dk256_dv256")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_q8_0, 2, dequantize_q8_0, block_iso3_0, NL_ISO3, dequantize_iso3_0, 256, 256>;
 template [[host_name("kernel_flash_attn_ext_kq8_0_viso3_dk512_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_q8_0, 2, dequantize_q8_0, block_iso3_0, NL_ISO3, dequantize_iso3_0, 512, 512>;
 template [[host_name("kernel_flash_attn_ext_kq8_0_viso3_dk576_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_q8_0, 2, dequantize_q8_0, block_iso3_0, NL_ISO3, dequantize_iso3_0, 576, 512>;
-template [[host_name("kernel_flash_attn_ext_kiso3_vf16_dk128_dv128")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_iso3_0, NL_ISO3, dequantize_iso3_0, half4x4, 1, dequantize_f16, 128, 128>;
-template [[host_name("kernel_flash_attn_ext_kiso3_vf16_dk256_dv256")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_iso3_0, NL_ISO3, dequantize_iso3_0, half4x4, 1, dequantize_f16, 256, 256>;
-template [[host_name("kernel_flash_attn_ext_kiso3_vf16_dk512_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_iso3_0, NL_ISO3, dequantize_iso3_0, half4x4, 1, dequantize_f16, 512, 512>;
-template [[host_name("kernel_flash_attn_ext_kiso3_vf16_dk576_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_iso3_0, NL_ISO3, dequantize_iso3_0, half4x4, 1, dequantize_f16, 576, 512>;
 template [[host_name("kernel_flash_attn_ext_kiso3_vq8_0_dk128_dv128")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_iso3_0, NL_ISO3, dequantize_iso3_0, block_q8_0, 2, dequantize_q8_0, 128, 128>;
 template [[host_name("kernel_flash_attn_ext_kiso3_vq8_0_dk256_dv256")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_iso3_0, NL_ISO3, dequantize_iso3_0, block_q8_0, 2, dequantize_q8_0, 256, 256>;
 template [[host_name("kernel_flash_attn_ext_kiso3_vq8_0_dk512_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_iso3_0, NL_ISO3, dequantize_iso3_0, block_q8_0, 2, dequantize_q8_0, 512, 512>;
@@ -7684,19 +7679,11 @@ template [[host_name("kernel_flash_attn_ext_kplanar3_vplanar3_dk320_dv256")]] ke
 template [[host_name("kernel_flash_attn_ext_kplanar3_vplanar3_dk512_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, 512, 512>;
 template [[host_name("kernel_flash_attn_ext_kplanar3_vplanar3_dk576_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, 576, 512>;
 
-// Asymmetric K/V for PlanarQuant deferred-F16-prefill path and explicit F16-K / Q8_0-K use
-template [[host_name("kernel_flash_attn_ext_kf16_vplanar3_dk128_dv128")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, half4x4, 1, dequantize_f16, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, 128, 128>;
-template [[host_name("kernel_flash_attn_ext_kf16_vplanar3_dk256_dv256")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, half4x4, 1, dequantize_f16, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, 256, 256>;
-template [[host_name("kernel_flash_attn_ext_kf16_vplanar3_dk512_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, half4x4, 1, dequantize_f16, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, 512, 512>;
-template [[host_name("kernel_flash_attn_ext_kf16_vplanar3_dk576_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, half4x4, 1, dequantize_f16, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, 576, 512>;
+// Asymmetric K/V for PlanarQuant — Q8_0 K + planar3 V
 template [[host_name("kernel_flash_attn_ext_kq8_0_vplanar3_dk128_dv128")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_q8_0, 2, dequantize_q8_0, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, 128, 128>;
 template [[host_name("kernel_flash_attn_ext_kq8_0_vplanar3_dk256_dv256")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_q8_0, 2, dequantize_q8_0, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, 256, 256>;
 template [[host_name("kernel_flash_attn_ext_kq8_0_vplanar3_dk512_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_q8_0, 2, dequantize_q8_0, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, 512, 512>;
 template [[host_name("kernel_flash_attn_ext_kq8_0_vplanar3_dk576_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_q8_0, 2, dequantize_q8_0, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, 576, 512>;
-template [[host_name("kernel_flash_attn_ext_kplanar3_vf16_dk128_dv128")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, half4x4, 1, dequantize_f16, 128, 128>;
-template [[host_name("kernel_flash_attn_ext_kplanar3_vf16_dk256_dv256")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, half4x4, 1, dequantize_f16, 256, 256>;
-template [[host_name("kernel_flash_attn_ext_kplanar3_vf16_dk512_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, half4x4, 1, dequantize_f16, 512, 512>;
-template [[host_name("kernel_flash_attn_ext_kplanar3_vf16_dk576_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, half4x4, 1, dequantize_f16, 576, 512>;
 template [[host_name("kernel_flash_attn_ext_kplanar3_vq8_0_dk128_dv128")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, block_q8_0, 2, dequantize_q8_0, 128, 128>;
 template [[host_name("kernel_flash_attn_ext_kplanar3_vq8_0_dk256_dv256")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, block_q8_0, 2, dequantize_q8_0, 256, 256>;
 template [[host_name("kernel_flash_attn_ext_kplanar3_vq8_0_dk512_dv512")]] kernel flash_attn_ext_t kernel_flash_attn_ext<FA_TYPES, block_planar3_0, NL_PLANAR3, dequantize_planar3_0, block_q8_0, 2, dequantize_q8_0, 512, 512>;
@@ -8567,19 +8554,13 @@ template [[host_name("kernel_flash_attn_ext_vec_kiso3_viso3_dk320_dv256")]] kern
 template [[host_name("kernel_flash_attn_ext_vec_kiso3_viso3_dk512_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, 512, 512, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kiso3_viso3_dk576_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, 576, 512, 2>;
 
-// Asymmetric K/V vec flash attention — iso3 mixed with f16 or q8_0
-template [[host_name("kernel_flash_attn_ext_vec_kf16_viso3_dk128_dv128")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, half4, 1, dequantize_f16_t4, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, 128, 128, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kf16_viso3_dk256_dv256")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, half4, 1, dequantize_f16_t4, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, 256, 256, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kf16_viso3_dk512_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, half4, 1, dequantize_f16_t4, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, 512, 512, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kf16_viso3_dk576_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, half4, 1, dequantize_f16_t4, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, 576, 512, 2>;
+// Asymmetric K/V vec flash attention — iso3 mixed with q8_0 (f16 × iso3 path
+// explored in this session but produces corrupted decode output — see the
+// non-vec asymmetric block above for details)
 template [[host_name("kernel_flash_attn_ext_vec_kq8_0_viso3_dk128_dv128")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_q8_0, 8, dequantize_q8_0_t4, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, 128, 128, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kq8_0_viso3_dk256_dv256")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_q8_0, 8, dequantize_q8_0_t4, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, 256, 256, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kq8_0_viso3_dk512_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_q8_0, 8, dequantize_q8_0_t4, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, 512, 512, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kq8_0_viso3_dk576_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_q8_0, 8, dequantize_q8_0_t4, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, 576, 512, 2>;
-template [[host_name("kernel_flash_attn_ext_vec_kiso3_vf16_dk128_dv128")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, half4, 1, dequantize_f16_t4, 128, 128, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kiso3_vf16_dk256_dv256")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, half4, 1, dequantize_f16_t4, 256, 256, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kiso3_vf16_dk512_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, half4, 1, dequantize_f16_t4, 512, 512, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kiso3_vf16_dk576_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, half4, 1, dequantize_f16_t4, 576, 512, 2>;
 template [[host_name("kernel_flash_attn_ext_vec_kiso3_vq8_0_dk128_dv128")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, block_q8_0, 8, dequantize_q8_0_t4, 128, 128, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kiso3_vq8_0_dk256_dv256")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, block_q8_0, 8, dequantize_q8_0_t4, 256, 256, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kiso3_vq8_0_dk512_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_iso3_0, NL_ISO3_VEC, dequantize_iso3_0_t4, block_q8_0, 8, dequantize_q8_0_t4, 512, 512, 1>;
@@ -8611,19 +8592,11 @@ template [[host_name("kernel_flash_attn_ext_vec_kplanar3_vplanar3_dk320_dv256")]
 template [[host_name("kernel_flash_attn_ext_vec_kplanar3_vplanar3_dk512_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, 512, 512, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kplanar3_vplanar3_dk576_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, 576, 512, 2>;
 
-// Asymmetric K/V vec flash attention — planar3 mixed with f16 or q8_0
-template [[host_name("kernel_flash_attn_ext_vec_kf16_vplanar3_dk128_dv128")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, half4, 1, dequantize_f16_t4, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, 128, 128, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kf16_vplanar3_dk256_dv256")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, half4, 1, dequantize_f16_t4, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, 256, 256, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kf16_vplanar3_dk512_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, half4, 1, dequantize_f16_t4, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, 512, 512, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kf16_vplanar3_dk576_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, half4, 1, dequantize_f16_t4, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, 576, 512, 2>;
+// Asymmetric K/V vec flash attention — planar3 mixed with q8_0
 template [[host_name("kernel_flash_attn_ext_vec_kq8_0_vplanar3_dk128_dv128")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_q8_0, 8, dequantize_q8_0_t4, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, 128, 128, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kq8_0_vplanar3_dk256_dv256")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_q8_0, 8, dequantize_q8_0_t4, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, 256, 256, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kq8_0_vplanar3_dk512_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_q8_0, 8, dequantize_q8_0_t4, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, 512, 512, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kq8_0_vplanar3_dk576_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_q8_0, 8, dequantize_q8_0_t4, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, 576, 512, 2>;
-template [[host_name("kernel_flash_attn_ext_vec_kplanar3_vf16_dk128_dv128")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, half4, 1, dequantize_f16_t4, 128, 128, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kplanar3_vf16_dk256_dv256")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, half4, 1, dequantize_f16_t4, 256, 256, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kplanar3_vf16_dk512_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, half4, 1, dequantize_f16_t4, 512, 512, 1>;
-template [[host_name("kernel_flash_attn_ext_vec_kplanar3_vf16_dk576_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, half4, 1, dequantize_f16_t4, 576, 512, 2>;
 template [[host_name("kernel_flash_attn_ext_vec_kplanar3_vq8_0_dk128_dv128")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, block_q8_0, 8, dequantize_q8_0_t4, 128, 128, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kplanar3_vq8_0_dk256_dv256")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, block_q8_0, 8, dequantize_q8_0_t4, 256, 256, 1>;
 template [[host_name("kernel_flash_attn_ext_vec_kplanar3_vq8_0_dk512_dv512")]] kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES, block_planar3_0, NL_PLANAR3_VEC, dequantize_planar3_0_t4, block_q8_0, 8, dequantize_q8_0_t4, 512, 512, 1>;
