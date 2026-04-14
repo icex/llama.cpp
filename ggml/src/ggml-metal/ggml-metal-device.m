@@ -1195,8 +1195,11 @@ bool ggml_metal_device_supports_op(ggml_metal_device_t dev, const struct ggml_te
             }
             if (op->src[1]->type != op->src[2]->type) {
                 // Allow asymmetric K/V for supported mixed pairs:
-                // - turbo x turbo (any combination)
+                // - turbo x turbo (any combination; iso3/planar3 count as turbo here)
                 // - q8_0 x turbo (either direction)
+                // Note: (f16, iso3/planar3) was added but produced incorrect output
+                //       during decode on Gemma 4 — reverted pending debug. Q8_0 K +
+                //       iso3/planar3 V works (asymmetric 5.1x compression config).
                 const bool k_is_turbo = (op->src[1]->type == GGML_TYPE_TURBO2_0 ||
                                          op->src[1]->type == GGML_TYPE_TURBO3_0 ||
                                          op->src[1]->type == GGML_TYPE_TURBO4_0 ||

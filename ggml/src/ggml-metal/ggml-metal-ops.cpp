@@ -2734,7 +2734,7 @@ int ggml_metal_op_flash_attn_ext(ggml_metal_op_t ctx, int idx) {
         const ggml_type type_k = op->src[1]->type;
         const ggml_type type_v = op->src[2]->type;
         if (type_k != type_v) {
-            const bool k_is_turbo = (type_k == GGML_TYPE_TURBO2_0 || type_k == GGML_TYPE_TURBO3_0 || type_k == GGML_TYPE_TURBO4_0 || type_k == GGML_TYPE_PLANAR3_0 || type_k == GGML_TYPE_PLANAR3_0 || type_k == GGML_TYPE_ISO3_0 || type_k == GGML_TYPE_PLANAR4_0 || type_k == GGML_TYPE_ISO4_0);
+            const bool k_is_turbo = (type_k == GGML_TYPE_TURBO2_0 || type_k == GGML_TYPE_TURBO3_0 || type_k == GGML_TYPE_TURBO4_0 || type_k == GGML_TYPE_PLANAR3_0 || type_k == GGML_TYPE_ISO3_0 || type_k == GGML_TYPE_PLANAR4_0 || type_k == GGML_TYPE_ISO4_0);
             const bool v_is_turbo = (type_v == GGML_TYPE_TURBO2_0 || type_v == GGML_TYPE_TURBO3_0 || type_v == GGML_TYPE_TURBO4_0 || type_v == GGML_TYPE_PLANAR3_0 || type_v == GGML_TYPE_ISO3_0 || type_v == GGML_TYPE_PLANAR4_0 || type_v == GGML_TYPE_ISO4_0);
             const bool k_is_q8 = (type_k == GGML_TYPE_Q8_0);
             const bool v_is_q8 = (type_v == GGML_TYPE_Q8_0);
