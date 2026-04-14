@@ -2536,7 +2536,10 @@ bool ggml_metal_op_flash_attn_ext_use_vec(const ggml_tensor * op) {
     // loop iterations than the non-vec nl=2 path. On M2 Pro, this loop overhead
     // dominates — the non-vec path may be faster even for batch=1.
     const ggml_type ktype = op->src[1]->type;
-    if (ktype == GGML_TYPE_TURBO2_0 || ktype == GGML_TYPE_TURBO3_0 || ktype == GGML_TYPE_TURBO4_0 || ktype == GGML_TYPE_PLANAR3_0 || ktype == GGML_TYPE_PLANAR3_0 || ktype == GGML_TYPE_ISO3_0 || ktype == GGML_TYPE_PLANAR4_0 || ktype == GGML_TYPE_ISO4_0) {
+    const ggml_type vtype = op->src[2]->type;
+    const bool k_is_rotor = (ktype == GGML_TYPE_TURBO2_0 || ktype == GGML_TYPE_TURBO3_0 || ktype == GGML_TYPE_TURBO4_0 || ktype == GGML_TYPE_PLANAR3_0 || ktype == GGML_TYPE_ISO3_0 || ktype == GGML_TYPE_PLANAR4_0 || ktype == GGML_TYPE_ISO4_0);
+    const bool v_is_rotor = (vtype == GGML_TYPE_TURBO2_0 || vtype == GGML_TYPE_TURBO3_0 || vtype == GGML_TYPE_TURBO4_0 || vtype == GGML_TYPE_PLANAR3_0 || vtype == GGML_TYPE_ISO3_0 || vtype == GGML_TYPE_PLANAR4_0 || vtype == GGML_TYPE_ISO4_0);
+    if (k_is_rotor || v_is_rotor) {
         const char * force_nonvec = getenv("TURBO_FORCE_NONVEC");
         if (force_nonvec && force_nonvec[0] == '1') {
             return false;  // force non-vec path
