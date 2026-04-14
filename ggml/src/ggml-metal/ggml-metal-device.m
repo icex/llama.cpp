@@ -241,11 +241,24 @@ ggml_metal_library_t ggml_metal_library_init(ggml_metal_device_t dev) {
                     // Sparse V dequant: skip V for negligible attention weights
                     // Enabled by default on all Metal (validated in turboquant: PPL identical, NIAH 9/9, 30+ testers)
                     // Opt-out via TURBO_SPARSE_V=0
+                    // Optional: TURBO_SPARSE_V_THRESHOLD env var tunes the skip cutoff
+                    //   (default 1e-6f, matches softmax FTZ). Aggressive values
+                    //   (1e-5f, 1e-4f) skip more positions at long context for
+                    //   additional speed, at possible quality cost.
                     const char * sparse_v_env = getenv("TURBO_SPARSE_V");
                     const bool sparse_v_disabled = sparse_v_env && sparse_v_env[0] == '0';
                     if (!sparse_v_disabled) {
                         [prep setObject:@"1" forKey:@"TURBO_SPARSE_V"];
-                        GGML_LOG_INFO("%s: turbo3 sparse V dequant enabled (opt-out: TURBO_SPARSE_V=0)\n", __func__);
+                        const char * sparse_v_thresh_env = getenv("TURBO_SPARSE_V_THRESHOLD");
+                        if (sparse_v_thresh_env && sparse_v_thresh_env[0] != '\0') {
+                            // Rebuild the -DTURBO_SPARSE_V_THRESHOLD=<x>f macro
+                            [prep setObject:[NSString stringWithFormat:@"%sf", sparse_v_thresh_env]
+                                     forKey:@"TURBO_SPARSE_V_THRESHOLD"];
+                            GGML_LOG_INFO("%s: turbo3 sparse V dequant enabled (threshold=%sf)\n",
+                                          __func__, sparse_v_thresh_env);
+                        } else {
+                            GGML_LOG_INFO("%s: turbo3 sparse V dequant enabled (opt-out: TURBO_SPARSE_V=0)\n", __func__);
+                        }
                     }
                     // TODO: context-adaptive dispatch — compile both 4-mag and 8-LUT
                     // FA kernel instantiations, select based on ne11 (KV cache size)

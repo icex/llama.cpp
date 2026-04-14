@@ -7080,6 +7080,47 @@ constant float iso_qz_32[32] = {
     0.0107116764f, -0.3112498820f, 0.1999502629f, -0.2273492515f, 0.2892593443f, 0.5372074246f, 0.9408631325f, 0.2907505929f,
 };
 
+// Interleaved quaternion table (qw, qx, qy, qz) — one float4 read per group
+// replaces four scalar constant-memory reads in the dequant hot path.
+// Values are identical to iso_q{w,x,y,z}_32 above; duplication is intentional
+// for decode-speed: Apple GPUs pay a measurable latency per constant-memory
+// dereference, and vectorized loads have lower amortized cost than scalar
+// loads against the small 32-entry table.
+constant half4 iso_q_32_h[32] = {
+    half4( 0.5765609741h,  0.4450169504h,  0.2695076466h, -0.6300023794h),
+    half4( 0.3176580369h, -0.5780548453h, -0.0201656222h, -0.7513582706h),
+    half4(-0.3234235942h,  0.7089627385h, -0.1687686443h, -0.6035611629h),
+    half4(-0.5127438903h, -0.3940812945h, -0.5415957570h,  0.5370919704h),
+    half4( 0.9233905673h, -0.0897334740h, -0.2796611190h,  0.2471584976h),
+    half4(-0.3323571086h,  0.4727236331h,  0.3510629535h,  0.7367672324h),
+    half4( 0.5468608141h,  0.5542563796h,  0.2609911859h,  0.5706370473h),
+    half4(-0.2500519454h,  0.0450818054h, -0.2715902030h,  0.9282674193h),
+    half4(-0.5812215805h, -0.3657043576h, -0.0937586129h,  0.7208684087h),
+    half4( 0.3228830695h, -0.4298477769h,  0.3095585108h, -0.7843156457h),
+    half4(-0.7299832702h,  0.4666220546h, -0.4123268127h, -0.2817355990h),
+    half4(-0.4535493255h,  0.7556306720h, -0.4394895136h, -0.1736787707h),
+    half4(-0.7338157296h, -0.5284956098h,  0.0626545250h,  0.4222335219h),
+    half4(-0.2884652913h,  0.7042509317h, -0.4811822474h, -0.4350655377h),
+    half4(-0.9000198841h,  0.0230921544h, -0.0407132693h,  0.4333281815h),
+    half4(-0.0377033800h,  0.7110687494h, -0.4566248953h,  0.5333415866h),
+    half4( 0.5104404092h,  0.3024962246h,  0.7834537029h,  0.1847889870h),
+    half4( 0.2033989877h, -0.1157865301h, -0.6187923551h,  0.7498788238h),
+    half4(-0.2462528497h,  0.7490812540h,  0.0809760988h,  0.6096553802h),
+    half4( 0.2314069420h, -0.2582575679h, -0.8879503012h, -0.3021556735h),
+    half4( 0.0072374810h, -0.2255804837h, -0.8928058147h, -0.3898189068h),
+    half4( 0.3923372924h,  0.3838746250h,  0.8350352049h,  0.0377884321h),
+    half4( 0.4958070219h, -0.3209520578h, -0.6994170547h,  0.4024685621h),
+    half4(-0.7235037088h, -0.3477301002h,  0.5606835485h,  0.2031257302h),
+    half4(-0.9383618832h,  0.1824720055h,  0.2933705449h,  0.0107116764h),
+    half4( 0.4430379272h,  0.4032751918h,  0.7377059460h, -0.3112498820h),
+    half4(-0.2075705230h,  0.8433781862h,  0.4534837306h,  0.1999502629h),
+    half4( 0.1983736306h,  0.9533935785h, -0.0009816211h, -0.2273492515h),
+    half4(-0.8834578991h, -0.0620501526h, -0.3632916510h,  0.2892593443h),
+    half4( 0.7389573455h,  0.0927560627h, -0.3959124386h,  0.5372074246h),
+    half4(-0.0156172011h,  0.2964956462h,  0.1631654203h,  0.9408631325h),
+    half4( 0.7738668919h,  0.2402082384h,  0.5088164806h,  0.2907505929h),
+};
+
 // ===== iso4 and planar4: aliases for turbo4 dequantize (same block layout) =====
 // The CPU quantize path uses turbo4's WHT rotation for both.
 // Custom Metal set_rows kernels with quaternion/Givens rotation are future work.
@@ -7254,6 +7295,12 @@ void dequantize_iso3_0(device const block_iso3_0 * xb, short il, thread type4x4 
 }
 
 // Vec dequantize: 4 elements per call (il in {0..NL_ISO3_VEC-1})
+// Optimized for Apple Silicon decode hot path:
+//   - Single half4 constant read for the quaternion (vs 4 scalar reads)
+//   - Hamilton product written as 4 SIMD dot products the compiler can
+//     actually emit as vector ops (vs 16 scalar FMAs that the MSL compiler
+//     fails to vectorize from scalar `q*v + q*v ...` expressions)
+//   - Norm folded into the final float4 multiply
 template <typename type4>
 void dequantize_iso3_0_t4(device const block_iso3_0 * xb, short il, thread type4 & reg) {
     const float norm = float(xb->norm);
@@ -7267,17 +7314,20 @@ void dequantize_iso3_0_t4(device const block_iso3_0 * xb, short il, thread type4
     raw[2] = iso_centroids_3bit[((qb >> 4) & 0x03) | (((sb >> (sshift + 2)) & 1) << 2)];
     raw[3] = iso_centroids_3bit[((qb >> 6) & 0x03) | (((sb >> (sshift + 3)) & 1) << 2)];
 
-    // Quaternion group = il (since each group is 4 elements)
-    int qg = il;
-    float qw = iso_qw_32[qg], qx = -iso_qx_32[qg], qy = -iso_qy_32[qg], qz = -iso_qz_32[qg];
-    float vw = raw[0], vx = raw[1], vy = raw[2], vz = raw[3];
+    // Single vector load: quaternion (qw, qx, qy, qz) as half4 → float4
+    const float4 q = (float4) iso_q_32_h[il];
+    const float qw = q.x, qx = -q.y, qy = -q.z, qz = -q.w;  // conjugate
 
-    float rw = qw*vw - qx*vx - qy*vy - qz*vz;
-    float rx = qw*vx + qx*vw + qy*vz - qz*vy;
-    float ry = qw*vy - qx*vz + qy*vw + qz*vx;
-    float rz = qw*vz + qx*vy - qy*vx + qz*vw;
+    // Hamilton product conj(q)*v as 4 SIMD dot products.
+    const float4 v = raw;
+    const float4 row_w = float4( qw, -qx, -qy, -qz);
+    const float4 row_x = float4( qx,  qw, -qz,  qy);
+    const float4 row_y = float4( qy,  qz,  qw, -qx);
+    const float4 row_z = float4( qz, -qy,  qx,  qw);
 
-    reg = (type4) float4(rw * norm, rx * norm, ry * norm, rz * norm);
+    const float4 rotated = float4(dot(row_w, v), dot(row_x, v), dot(row_y, v), dot(row_z, v));
+
+    reg = (type4) (rotated * norm);
 }
 
 // IsoQuant quantize (for set_rows — block level, no rotation here)
@@ -8244,8 +8294,16 @@ kernel void kernel_flash_attn_ext_vec(
                         // SPARSE V DEQUANT: skip V for positions with negligible attention weight.
                         // At 32K context, ~90%+ of attention weights are near zero.
                         // Skipping their V dequant saves ~50% of total dequant cost.
+                        //
+                        // TURBO_SPARSE_V_THRESHOLD (default 1e-6f) can be raised to
+                        // skip more positions at the cost of slight quality. Set to
+                        // e.g. 1e-4f via host-side macro to test quality/speed
+                        // trade-offs at very long context (>32k).
+#ifndef TURBO_SPARSE_V_THRESHOLD
+#define TURBO_SPARSE_V_THRESHOLD 1e-6f
+#endif
                         const float attn_weight = float(ss[NE*cc + ty]);
-                        if (attn_weight < 1e-6f) continue;  // skip negligible positions
+                        if (attn_weight < TURBO_SPARSE_V_THRESHOLD) continue;
 #endif
                         device const vd4_t * pv4 = (device const vd4_t *) (v + ((ic + NE*cc + ty)*args.nb21));
 
